@@ -109,22 +109,25 @@ body{background:#FFFFFF;color:var(--text);font-family:'Noto Sans',sans-serif;min
 }
 </style>
 
-<script type="module">
-  import { initializeApp } from "https://www.gstatic.com/firebasejs/12.13.0/firebase-app.js";
-  import { getFirestore, collection, addDoc } from "https://www.gstatic.com/firebasejs/12.13.0/firebase-firestore.js";
-  const firebaseConfig = {
-    apiKey: "AIzaSyAXVqUn1bKtx66vA6KGs_pLwZ5AUhneP60",
-    authDomain: "ubcab-carwash.firebaseapp.com",
-    projectId: "ubcab-carwash",
-    storageBucket: "ubcab-carwash.firebasestorage.app",
-    messagingSenderId: "917517900775",
-    appId: "1:917517900775:web:55b8ff9b6f9ae2b4b9fb42"
-  };
-  const app = initializeApp(firebaseConfig);
-  const db = getFirestore(app);
-  window.__db = db;
-  window.__fbCollection = collection;
-  window.__fbAddDoc = addDoc;
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
+<script>
+window.addEventListener('load', function() {
+  try {
+    firebase.initializeApp({
+      apiKey: 'AIzaSyAXVqUn1bKtx66vA6KGs_pLwZ5AUhneP60',
+      authDomain: 'ubcab-carwash.firebaseapp.com',
+      projectId: 'ubcab-carwash'
+    });
+    var db = firebase.firestore();
+    window.__db = db;
+    window.__fbReady = true;
+    console.log('Firebase ready');
+  } catch(e) {
+    console.log('Firebase error:', e);
+    window.__fbReady = false;
+  }
+});
 </script>
 </head>
 <body>
@@ -419,7 +422,7 @@ function removeFile(key, idx, listId) {
   renderFileList(key, listId);
 }
 
-async function submitForm() {
+function submitForm() {
   if(!document.getElementById('ag1').checked) { alert('Зөвшөөрлийг тэмдэглэнэ үү.'); return; }
   const btn = document.getElementById('submitBtn');
   btn.textContent = '⏳ Илгээж байна...';
@@ -433,18 +436,29 @@ async function submitForm() {
   formData.submittedAt = new Date().toISOString();
   formData.ref = 'UB-' + new Date().getFullYear() + '-' + Math.floor(10000+Math.random()*90000);
   formData.status = 'new';
-  try {
-    if(window.__db && window.__fbAddDoc && window.__fbCollection)
-      await window.__fbAddDoc(window.__fbCollection(window.__db,'submissions'), formData);
-  } catch(e) {
-    const s = JSON.parse(localStorage.getItem('ubcab_submissions')||'[]');
-    s.push(formData); localStorage.setItem('ubcab_submissions', JSON.stringify(s));
-  }
+  // Show success immediately - don't wait for Firebase
   document.getElementById('s3').classList.remove('active');
   document.getElementById('successScreen').classList.add('active');
   document.getElementById('refCode').textContent = formData.ref;
   document.getElementById('pf').style.width = '100%';
   window.scrollTo({top:0, behavior:'smooth'});
+
+  // Save to Firebase in background
+  try {
+    if(window.__db) {
+      window.__db.collection('submissions').add(formData)
+        .then(function() { console.log('Saved to Firebase'); })
+        .catch(function(e) { console.log('Firebase save error:', e); });
+    } else {
+      var s = JSON.parse(localStorage.getItem('ubcab_submissions')||'[]');
+      s.push(formData);
+      localStorage.setItem('ubcab_submissions', JSON.stringify(s));
+    }
+  } catch(e) {
+    var s = JSON.parse(localStorage.getItem('ubcab_submissions')||'[]');
+    s.push(formData);
+    localStorage.setItem('ubcab_submissions', JSON.stringify(s));
+  }
 }
 </script>
 </body>
